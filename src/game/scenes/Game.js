@@ -53,7 +53,7 @@ export class Game extends Scene
         this.samurai.body.setOffset(this.samurai.width * 0.25, this.samurai.height * 0.25);
 
         this.physics.add.collider(this.samurai, this.obstacles);
-
+        
         this.cameras.main.startFollow(this.samurai);
         this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
 
@@ -79,13 +79,49 @@ export class Game extends Scene
         this.input.once('pointerdown', () => {
             this.scene.start('GameOver');
         });
+
+        // Group for bugs
+        this.bugs = this.physics.add.group();
+
+        this.physics.add.collider(this.bugs,this.obstacles)
+
+        // Function to spawn a bug
+        this.spawnBug = () => {
+            // Randomly choose left or right side
+            const fromLeft = Phaser.Math.Between(0, 1) === 0;
+            const x = fromLeft ? 0 : worldWidth;
+            const y = Phaser.Math.Between(0, worldHeight);
+
+            const bug = this.bugs.create(x, y, 'game_bug');
+            bug.setScale(0.5);
+
+            // Calculate direction vector towards samurai
+            const dx = this.samurai.x - x;
+            const dy = this.samurai.y - y;
+            const angle = Math.atan2(dy, dx);
+
+            // Set velocity towards samurai
+            const speed = 150;
+            bug.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+
+            // Schedule next bug spawn
+            this.time.delayedCall(
+                Phaser.Math.Between(1000, 10000), // 1 to 10 seconds
+                this.spawnBug,
+                [],
+                this
+            );
+        };
+
+        // Start the first bug spawn
+        this.spawnBug();
     }
 
     update() {
         const speed = 200;
         if (!this.samurai) return;
 
-        // Reset velocity every frame
+        // Samurai movement
         this.samurai.setVelocity(0);
 
         if (this.cursors.left.isDown) {
@@ -99,5 +135,15 @@ export class Game extends Scene
         } else if (this.cursors.down.isDown) {
             this.samurai.setVelocityY(speed);
         }
+
+        // Make bugs chase the samurai
+        this.bugs.children.iterate(bug => {
+            if (!bug) return;
+            const dx = this.samurai.x - bug.x;
+            const dy = this.samurai.y - bug.y;
+            const angle = Math.atan2(dy, dx);
+            const bugSpeed = 150;
+            bug.setVelocity(Math.cos(angle) * bugSpeed, Math.sin(angle) * bugSpeed);
+        });
     }
 }

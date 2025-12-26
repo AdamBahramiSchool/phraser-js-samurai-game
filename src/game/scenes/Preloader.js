@@ -26,7 +26,7 @@ export class Preloader extends Scene
         this.load.image('water_ruins','ruins/Water_ruins1.png')
         this.load.image('snow_ruins','ruins/White_ruins1.png')
         this.load.image('yellow_ruins','ruins/Yellow_ruins1.png')
-
+        this.load.image('game_bug', 'characters/game_bug.png')
         // Make sure 'background' is loaded in Boot or here as well
     }
 
