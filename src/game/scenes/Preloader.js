@@ -21,8 +21,12 @@ export class Preloader extends Scene
     preload ()
     {
         this.load.setPath('assets');
-        this.load.image('2dsamurai', '2dsamurai.png');
+        this.load.image('2dsamurai', 'characters/2dsamurai.png');
         this.load.image('lava', 'lava/l2_ground.png');
+        this.load.image('water_ruins','ruins/Water_ruins1.png')
+        this.load.image('snow_ruins','ruins/White_ruins1.png')
+        this.load.image('yellow_ruins','ruins/Yellow_ruins1.png')
+
         // Make sure 'background' is loaded in Boot or here as well
     }
 
