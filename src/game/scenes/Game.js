@@ -1,4 +1,8 @@
 import { Scene } from 'phaser';
+import {Samurai} from '../objects/samurai.js';
+import {Bug} from '../objects/bug.js'
+import { Ruins } from '../objects/ruins.js';
+import { HealthBar } from '../objects/healthbar.js';
 
 export class Game extends Scene
 {
@@ -41,16 +45,14 @@ export class Game extends Scene
 
             const keys = ['water_ruins', 'snow_ruins', 'yellow_ruins'];
             const key = keys[Phaser.Math.Between(0, keys.length - 1)];
-            const ruin = this.obstacles.create(x, y, key).setScale(2);
+            const ruin = new Ruins(this, x, y, key);
+            this.obstacles.add(ruin);
+            ruin.setScale(2);
             ruin.body.setSize(ruin.width * 0.5, ruin.height * 0.5);
             ruin.refreshBody();
         }
 
-        this.samurai = this.physics.add.image(worldWidth / 2, worldHeight / 2, '2dsamurai');
-        this.samurai.setScale(0.2);
-
-        this.samurai.body.setSize(this.samurai.width * 0.5, this.samurai.height * 0.5);
-        this.samurai.body.setOffset(this.samurai.width * 0.25, this.samurai.height * 0.25);
+        this.samurai=new Samurai(this,worldWidth / 2, worldHeight / 2);
 
         this.physics.add.collider(this.samurai, this.obstacles);
         
@@ -62,19 +64,7 @@ export class Game extends Scene
         // Initialize swinging state
         this.swinging = false;
 
-        // Sword swing on spacebar
-        this.input.keyboard.on('keydown-SPACE', () => {
-            if (!this.swinging) {
-                this.swinging = true;
-                this.tweens.add({
-                    targets: this.samurai,
-                    angle: 360 * 2,
-                    duration: 100,
-                    yoyo: true,
-                    onComplete: () => { this.swinging = false; }
-                });
-            }
-        });
+        this.dashCooldown = 0;
 
         this.input.once('pointerdown', () => {
             this.scene.start('GameOver');
@@ -87,13 +77,13 @@ export class Game extends Scene
 
         // Function to spawn a bug
         this.spawnBug = () => {
-            // Randomly choose left or right side
             const fromLeft = Phaser.Math.Between(0, 1) === 0;
             const x = fromLeft ? 0 : worldWidth;
             const y = Phaser.Math.Between(0, worldHeight);
 
-            const bug = this.bugs.create(x, y, 'game_bug');
+            const bug = new Bug(this, x, y);
             bug.setScale(0.5);
+            this.bugs.add(bug);
 
             // Calculate direction vector towards samurai
             const dx = this.samurai.x - x;
@@ -106,7 +96,7 @@ export class Game extends Scene
 
             // Schedule next bug spawn
             this.time.delayedCall(
-                Phaser.Math.Between(1000, 10000), // 1 to 10 seconds
+                Phaser.Math.Between(1000, 10000),
                 this.spawnBug,
                 [],
                 this
@@ -115,35 +105,110 @@ export class Game extends Scene
 
         // Start the first bug spawn
         this.spawnBug();
-    }
+
+        // Place at bottom left, with a margin
+        const margin = 20;
+        const barWidth = 200;
+        const barHeight = 30;
+        const x = margin;
+        const y = this.scale.height - barHeight - margin;
+        this.healthbar = new HealthBar(this, x, y, barWidth, barHeight, 100);
+
+        // Fix health bar to the camera (screen space)
+        this.healthbar.bar.setScrollFactor(0);
+        this.healthbar.text.setScrollFactor(0);
+        
+        // A key attack (spin -45 degrees)
+        this.input.keyboard.on('keydown-A', () => {
+            if (!this.swinging) {
+                this.swinging = true;
+                this.tweens.add({
+                    targets: this.samurai,
+                    angle: '-=75',
+                    duration: 50,
+                    yoyo: true,
+                    onComplete: () => { this.swinging = false; }
+                });
+            }
+        });
+
+        // D key attack (spin +45 degrees)
+        this.input.keyboard.on('keydown-D', () => {
+            if (!this.swinging) {
+                this.swinging = true;
+                this.tweens.add({
+                    targets: this.samurai,
+                    angle: '+=75',
+                    duration: 50,
+                    yoyo: true,
+                    onComplete: () => { this.swinging = false; }
+                });
+            }
+            });
+        this.isDashing = false;
+    }   
 
     update() {
         const speed = 200;
         if (!this.samurai) return;
 
         // Samurai movement
-        this.samurai.setVelocity(0);
+        // Only reset velocity if not dashing
+if (!this.isDashing) {
+    this.samurai.setVelocity(0);
 
-        if (this.cursors.left.isDown) {
-            this.samurai.setVelocityX(-speed);
-        } else if (this.cursors.right.isDown) {
-            this.samurai.setVelocityX(speed);
-        }
+    if (this.cursors.left.isDown) {
+        this.samurai.setVelocityX(-speed);
+    } else if (this.cursors.right.isDown) {
+        this.samurai.setVelocityX(speed);
+    }
 
-        if (this.cursors.up.isDown) {
-            this.samurai.setVelocityY(-speed);
-        } else if (this.cursors.down.isDown) {
-            this.samurai.setVelocityY(speed);
-        }
+    if (this.cursors.up.isDown) {
+        this.samurai.setVelocityY(-speed);
+    } else if (this.cursors.down.isDown) {
+        this.samurai.setVelocityY(speed);
+    }
+}
 
-        // Make bugs chase the samurai
-        this.bugs.children.iterate(bug => {
-            if (!bug) return;
-            const dx = this.samurai.x - bug.x;
-            const dy = this.samurai.y - bug.y;
-            const angle = Math.atan2(dy, dx);
-            const bugSpeed = 150;
-            bug.setVelocity(Math.cos(angle) * bugSpeed, Math.sin(angle) * bugSpeed);
+const dashSpeed = 600;
+const dashDuration = 100; // ms
+const dashCooldownTime = 500; // ms
+
+if (
+    this.cursors.space.isDown &&
+    this.time.now > this.dashCooldown &&
+    !this.isDashing
+) {
+    let dx = 0, dy = 0;
+    if (this.cursors.left.isDown) dx = -1;
+    else if (this.cursors.right.isDown) dx = 1;
+    if (this.cursors.up.isDown) dy = -1;
+    else if (this.cursors.down.isDown) dy = 1;
+
+    if (dx !== 0 || dy !== 0) {
+        const len = Math.sqrt(dx * dx + dy * dy);
+        dx /= len;
+        dy /= len;
+
+        this.samurai.setVelocity(dx * dashSpeed, dy * dashSpeed);
+        this.isDashing = true;
+        this.dashCooldown = this.time.now + dashCooldownTime;
+
+        this.time.delayedCall(dashDuration, () => {
+            this.isDashing = false;
+            this.samurai.setVelocity(0);
         });
+    }
+}
+
+// Make bugs chase the samurai
+this.bugs.children.iterate(bug => {
+    if (!bug) return;
+    const dx = this.samurai.x - bug.x;
+    const dy = this.samurai.y - bug.y;
+    const angle = Math.atan2(dy, dx);
+    const bugSpeed = 150;
+    bug.setVelocity(Math.cos(angle) * bugSpeed, Math.sin(angle) * bugSpeed);
+});
     }
 }
