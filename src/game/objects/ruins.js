@@ -4,6 +4,5 @@ export class Ruins extends Phaser.Physics.Arcade.Image {
         super(scene, x, y, key);
         scene.add.existing(this);
         scene.physics.add.existing(this, true); // true makes it static
-        this.setScale(0.2);
     }
 }
