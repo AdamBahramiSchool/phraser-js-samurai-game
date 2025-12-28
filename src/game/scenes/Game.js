@@ -1,6 +1,5 @@
 import { Scene } from 'phaser';
 import {Samurai} from '../objects/samurai.js';
-import {Bug} from '../objects/bug.js'
 import { Ruins } from '../objects/ruins.js';
 import { HealthBar } from '../objects/healthbar.js';
 import { SamuraiAttack } from '../utils/SamuraiAttack.js';
