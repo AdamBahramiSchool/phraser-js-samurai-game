@@ -1,7 +1,5 @@
-import Phaser from 'phaser';
-
 export class HealthBar {
-    constructor(scene, x, y, width = 200, height = 30, maxHealth = 100) {
+    constructor(scene, x = 20, y = 20, width = 200, height = 30, maxHealth = 100) {
         this.scene = scene;
         this.x = x;
         this.y = y;

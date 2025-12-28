@@ -7,6 +7,8 @@ import { SamuraiAttack } from '../utils/SamuraiAttack.js';
 import { PlaceObstacles } from '../utils/PlaceObstacles.js';
 import {resizeObject} from '../utils/ResizeObjects.js'
 import { SpawnBugs } from '../utils/SpawnBugs.js';
+import { handleSamuraiMovement, handleSamuraiDash, updateBugsChaseSamurai } from '../utils/UpdateUtils.js';
+
 export class Game extends Scene
 {
     constructor ()
@@ -64,77 +66,36 @@ export class Game extends Scene
         const barHeight = 30;
         const x = margin;
         const y = this.scale.height - barHeight - margin;
-        this.healthbar = new HealthBar(this, x, y, barWidth, barHeight, 100);
-
-        // Fix health bar to the camera (screen space)
+        this.healthbar = new HealthBar(this, x, y, barWidth, barHeight, 100);            // Fix health bar to the camera (screen space)
         this.healthbar.bar.setScrollFactor(0);
         this.healthbar.text.setScrollFactor(0);
         
-       
+        // for space movement in update
         this.isDashing = false;
     }   
 
     update() {
         const speed = 200;
-        if (!this.samurai) return;
+        const dashState = {
+            dashSpeed: 600,
+            dashDuration: 100,
+            dashCooldownTime: 500,
+            isDashing: this.isDashing,
+            dashCooldown: this.dashCooldown
+        };
 
-            // Samurai movement
-            // Only reset velocity if not dashing
-        if (!this.isDashing) {
-            this.samurai.setVelocity(0);
+        handleSamuraiMovement(this.samurai, this.cursors, speed, this.isDashing);
 
-            if (this.cursors.left.isDown) {
-                this.samurai.setVelocityX(-speed);
-            } else if (this.cursors.right.isDown) {
-                this.samurai.setVelocityX(speed);
-            }
+        handleSamuraiDash(this, this.samurai, this.cursors, {
+            dashSpeed: 600,
+            dashDuration: 100,
+            dashCooldownTime: 500
+        });
 
-            if (this.cursors.up.isDown) {
-                this.samurai.setVelocityY(-speed);
-            } else if (this.cursors.down.isDown) {
-                this.samurai.setVelocityY(speed);
-            }
-        }
-
-        const dashSpeed = 600;
-        const dashDuration = 100; // ms
-        const dashCooldownTime = 500; // ms
-
-        if (
-            this.cursors.space.isDown &&
-            this.time.now > this.dashCooldown &&
-            !this.isDashing
-        ) {
-            let dx = 0, dy = 0;
-            if (this.cursors.left.isDown) dx = -1;
-            else if (this.cursors.right.isDown) dx = 1;
-            if (this.cursors.up.isDown) dy = -1;
-            else if (this.cursors.down.isDown) dy = 1;
-
-            if (dx !== 0 || dy !== 0) {
-                const len = Math.sqrt(dx * dx + dy * dy);
-                dx /= len;
-                dy /= len;
-
-                this.samurai.setVelocity(dx * dashSpeed, dy * dashSpeed);
-                this.isDashing = true;
-                this.dashCooldown = this.time.now + dashCooldownTime;
-
-                this.time.delayedCall(dashDuration, () => {
-                    this.isDashing = false;
-                    this.samurai.setVelocity(0);
-                });
-            }
-            }
-
-            // Make bugs chase the samurai
-            this.bugs.children.iterate(bug => {
-                if (!bug) return;
-                const dx = this.samurai.x - bug.x;
-                const dy = this.samurai.y - bug.y;
-                const angle = Math.atan2(dy, dx);
-                const bugSpeed = 150;
-                bug.setVelocity(Math.cos(angle) * bugSpeed, Math.sin(angle) * bugSpeed);
-            });
-                }
+        // Sync dash state back to the scene
+        this.isDashing = dashState.isDashing;
+        this.dashCooldown = dashState.dashCooldown;
+        console.log(this.isDashing)
+        updateBugsChaseSamurai(this.bugs, this.samurai, 150);
+    }
 }
